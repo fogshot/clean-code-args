@@ -1,2 +1,6 @@
 # IDE Files
 /.idea/
+**/*.iml
+
+# Generated Files
+/target/
