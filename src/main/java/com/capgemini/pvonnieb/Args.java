@@ -6,11 +6,9 @@ import java.util.*;
 public class Args {
     private String schema;
     private String[] args;
-    private boolean valid = true;
+    private boolean valid;
     private Set<Character> unexpectedArguments = new TreeSet<>();
-    private Map<Character, Boolean> booleanArgs = new HashMap<>();
-    private Map<Character, String> stringArgs = new HashMap<>();
-    private Map<Character, Integer> intArgs = new HashMap<>();
+    private Map<Character, ArgumentMarshaller> marshallers = new HashMap<>();
     private Set<Character> argsFound = new HashSet<>();
     private int currentArgument;
     private char errorArgumentId = '\0';
@@ -49,11 +47,11 @@ public class Args {
         String elementTail = element.substring(1);
         validateSchemaElementId(elementId);
         if (isBooleanSchemaElement(elementTail)) {
-            parseBooleanSchemaElement(elementId);
+            marshallers.put(elementId, new BooleanArgumentMarshaller());
         } else if (isStringSchemaElement(elementTail)) {
-            parseStringSchemaElement(elementId);
+            marshallers.put(elementId, new StringArgumentMarshaller());
         } else if (isIntegerSchemaElement(elementTail)) {
-            parseIntegerSchemaElement(elementId);
+            marshallers.put(elementId, new IntegerArgumentMarshaller());
         } else {
             throw new ParseException(String.format("Argument: %c has invalid format: %s.", elementId, elementTail), 0);
         }
@@ -63,18 +61,6 @@ public class Args {
         if (!Character.isLetter(elementId)) {
             throw new ParseException("Bad character: '" + elementId + "' in Args format: " + schema, 0);
         }
-    }
-
-    private void parseBooleanSchemaElement(char elementId) {
-        booleanArgs.put(elementId, false);
-    }
-
-    private void parseIntegerSchemaElement(char elementId) {
-        intArgs.put(elementId, 0);
-    }
-
-    private void parseStringSchemaElement(char elementId) {
-        stringArgs.put(elementId, "");
     }
 
     private boolean isStringSchemaElement(String elementTail) {
@@ -120,64 +106,50 @@ public class Args {
     }
 
     private boolean setArgument(char argChar) throws ArgsException {
-        if (isBooleanArg(argChar)) {
-            setBooleanArg(argChar, true);
-        } else if (isStringArg(argChar)) {
-            setStringArg(argChar);
-        } else if (isIntArg(argChar)) {
-            setIntArg(argChar);
-        } else {
-            return false;
+        ArgumentMarshaller m = marshallers.get(argChar);
+        try {
+            if (m instanceof BooleanArgumentMarshaller) {
+                m.set("true");
+            } else if (m instanceof StringArgumentMarshaller) {
+                setStringArg(m);
+            } else if (m instanceof IntegerArgumentMarshaller) {
+                setIntArg(m);
+            } else {
+                return false;
+            }
+        } catch (ArgsException e) {
+            valid = false;
+            errorArgumentId = argChar;
+            throw e;
         }
         return true;
     }
 
-    private boolean isIntArg(char argChar) {
-        return intArgs.containsKey(argChar);
-    }
-
-    private void setIntArg(char argChar) throws ArgsException {
+    private void setIntArg(ArgumentMarshaller m) throws ArgsException {
         currentArgument++;
-        String parameter = null;
+        String parameter;
         try {
             parameter = args[currentArgument];
-            intArgs.put(argChar, Integer.parseInt(parameter));
+            m.set(parameter);
         } catch (ArrayIndexOutOfBoundsException e) {
             valid = false;
-            errorArgumentId = argChar;
             errorCode = ErrorCode.MISSING_INTEGER;
             throw new ArgsException();
-        } catch (NumberFormatException e) {
-            valid = false;
-            errorArgumentId = argChar;
-            errorParameter = parameter;
+        } catch (ArgsException e) {
             errorCode = ErrorCode.INVALID_INTEGER;
             throw new ArgsException();
         }
     }
 
-    private void setStringArg(char argChar) throws ArgsException {
+    private void setStringArg(ArgumentMarshaller m) throws ArgsException {
         currentArgument++;
         try {
-            stringArgs.put(argChar, args[currentArgument]);
+            m.set(args[currentArgument]);
         } catch (ArrayIndexOutOfBoundsException e) {
             valid = false;
-            errorArgumentId = argChar;
             errorCode = ErrorCode.MISSING_STRING;
             throw new ArgsException();
         }
-    }
-
-    private boolean isStringArg(char argChar) {
-        return stringArgs.containsKey(argChar);
-    }
-
-    private void setBooleanArg(char argChar, boolean value) {
-        booleanArgs.put(argChar, value);
-    }
-
-    private boolean isBooleanArg(char argChar) {
-        return booleanArgs.containsKey(argChar);
     }
 
     private int cardinality() {
@@ -219,28 +191,31 @@ public class Args {
         return message.toString();
     }
 
-    private boolean falseIfNull(Boolean b) {
-        return b != null && b;
-    }
-
-    private int zeroIfNull(Integer i) {
-        return i == null ? 0 : i;
-    }
-
-    private String blankIfNull(String s) {
-        return s == null ? "" : s;
-    }
-
     public String getString(char arg) {
-        return blankIfNull(stringArgs.get(arg));
+        ArgumentMarshaller am = marshallers.get(arg);
+        try {
+            return am == null ? "" : (String) am.get();
+        } catch (ClassCastException e) {
+            return "";
+        }
     }
 
     public int getInt(char arg) {
-        return zeroIfNull(intArgs.get(arg));
+        ArgumentMarshaller am = marshallers.get(arg);
+        try {
+            return am == null ? 0 : (Integer) am.get();
+        } catch (ClassCastException e) {
+            return 0;
+        }
     }
 
     public boolean getBoolean(char arg) {
-        return falseIfNull(booleanArgs.get(arg));
+        ArgumentMarshaller am = marshallers.get(arg);
+        try {
+            return am != null && (Boolean) am.get();
+        } catch (ClassCastException e) {
+            return false;
+        }
     }
 
     private enum ErrorCode {
@@ -249,4 +224,64 @@ public class Args {
 
     private class ArgsException extends Exception {
     }
+
+    private abstract class ArgumentMarshaller {
+
+        public abstract void set(String s) throws ArgsException;
+
+        public abstract Object get();
+    }
+
+    private class BooleanArgumentMarshaller extends ArgumentMarshaller {
+
+        private boolean booleanValue = false;
+
+        @Override
+        public void set(String s) {
+            booleanValue = true;
+        }
+
+        @Override
+        public Object get() {
+            return booleanValue;
+        }
+    }
+
+    private class StringArgumentMarshaller extends ArgumentMarshaller {
+
+        private String stringValue = "";
+
+        @Override
+        public void set(String s) {
+            stringValue = s;
+        }
+
+        @Override
+        public Object get() {
+            return stringValue == null ? "" : stringValue;
+        }
+    }
+
+    private class IntegerArgumentMarshaller extends ArgumentMarshaller {
+
+        private int integerValue = 0;
+
+        @Override
+        public void set(String value) throws ArgsException {
+            try {
+                integerValue = Integer.parseInt(value);
+            } catch (NumberFormatException e) {
+                valid = false;
+                errorCode = ErrorCode.INVALID_INTEGER;
+                errorParameter = value;
+                throw new ArgsException();
+            }
+        }
+
+        @Override
+        public Object get() {
+            return integerValue;
+        }
+    }
+
 }
