@@ -117,36 +117,12 @@ public class Args {
         }
     }
 
-    protected int cardinality() {
-        return argsFound.size();
-    }
-
-    public String usage() {
-        if (schema.length() > 0) {
-            return "-[" + schema + "]";
-        } else {
-            return "";
-        }
-    }
-
-    public String getString(char arg) {
-        ArgumentMarshaller am = marshallers.get(arg);
-        try {
-            return am == null ? "" : (String) am.get();
-        } catch (ClassCastException e) {
-            return "";
-        }
-    }
-
-    public int getInt(char arg) {
-        ArgumentMarshaller am = marshallers.get(arg);
-        try {
-            return am == null ? 0 : (Integer) am.get();
-        } catch (ClassCastException e) {
-            return 0;
-        }
-    }
-
+    /**
+     * Obtain the value of a Boolean argument (b).
+     *
+     * @param arg the name of the argument
+     * @return the value of the argument's parameter, or false if no value could be found.
+     */
     public boolean getBoolean(char arg) {
         ArgumentMarshaller am = marshallers.get(arg);
         try {
@@ -156,16 +132,70 @@ public class Args {
         }
     }
 
-    public boolean has(char argChar) {
-        return marshallers.containsKey(argChar);
+    /**
+     * Obtain the value of a String argument (s*).
+     *
+     * @param arg the name of the argument
+     * @return the value of the argument's parameter, or "" if no value could be found.
+     */
+    public String getString(char arg) {
+        ArgumentMarshaller am = marshallers.get(arg);
+        try {
+            return am == null ? "" : (String) am.get();
+        } catch (ClassCastException e) {
+            return "";
+        }
     }
 
+    /**
+     * Obtain the value of an Integer argument (d#).
+     *
+     * @param arg the name of the argument
+     * @return the value of the argument's parameter, or 0 if no value could be found.
+     */
+    public int getInt(char arg) {
+        ArgumentMarshaller am = marshallers.get(arg);
+        try {
+            return am == null ? 0 : (Integer) am.get();
+        } catch (ClassCastException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Obtain the value of a Double argument (f##).
+     *
+     * @param arg the name of the argument
+     * @return the value of the argument's parameter, or 0 if no value could be found.
+     */
     public double getDouble(char arg) {
         ArgumentMarshaller am = marshallers.get(arg);
         return am == null ? 0 : (Double) am.get();
     }
 
+    /**
+     * Print a help text that shows the argument schema to the user.
+     */
+    public String usage() {
+        if (schema.length() > 0) {
+            return "-[" + schema + "]";
+        } else {
+            return "";
+        }
+    }
+
+    /**
+     * Returns true if the given argument has been parsed by Args.
+     *
+     * @param argChar the name of the argument to check
+     * @return true if the argument was found; false otherwise
+     */
+    public boolean has(char argChar) {
+        return marshallers.containsKey(argChar);
+    }
+
     private interface ArgumentMarshaller {
+
 
         void set(Iterator<String> currentArgument) throws ArgsException;
 

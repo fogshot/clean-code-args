@@ -18,7 +18,6 @@ class ArgsTest {
         Args args = new Args("", new String[0]);
 
         String usageString = args.usage();
-        assertThat(args.cardinality()).describedAs("Args without arguments should have cardinality of Zero.").isEqualTo(0);
         assertThat(usageString).describedAs("Usage message for empty schema should be an empty String.")
                 .isEqualTo("");
     }
@@ -64,7 +63,6 @@ class ArgsTest {
     @Test
     void constructWithSpacesInSchema() throws ArgsException {
         Args args = new Args("a, b", new String[]{"-a", "-b"});
-        assertThat(args.cardinality()).isEqualTo(2);
         assertThat(args.has('a'));
         assertThat(args.has('b'));
     }
@@ -72,7 +70,6 @@ class ArgsTest {
     @Test
     void constructWithoutSpacesInSchema() throws ArgsException {
         Args args = new Args("a,b", new String[]{"-a", "-b"});
-        assertThat(args.cardinality()).isEqualTo(2);
         assertThat(args.has('a'));
         assertThat(args.has('b'));
     }
@@ -151,7 +148,6 @@ class ArgsTest {
 
         assertThat(args.getString('s')).describedAs("The returned String should be equal to the argument of '-s'.")
                 .isEqualTo("asdf");
-        assertThat(args.cardinality()).isEqualTo(3);
     }
 
     @Test

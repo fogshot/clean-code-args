@@ -24,13 +24,13 @@ public class ArgsException extends Exception {
      * Convenient constructor that makes use of canned error messages for common error codes
      */
     public ArgsException(char errorArgument, String errorParameter, ErrorCode errorCode) {
-        super(errorMessage(errorArgument, errorParameter, errorCode));
+        super(constructCannedErrorMessage(errorArgument, errorParameter, errorCode));
         this.errorArgumentId = errorArgument;
         this.errorParameter = errorParameter;
         this.errorCode = errorCode;
     }
 
-    private static String errorMessage(char errorArgumentId, String errorParameter, ErrorCode errorCode) {
+    private static String constructCannedErrorMessage(char errorArgumentId, String errorParameter, ErrorCode errorCode) {
         switch (errorCode) {
             case UNEXPECTED_ARGUMENT:
                 return unexpectedArgumentMessage(errorParameter);
