@@ -35,25 +35,25 @@ class ArgsTest {
     }
 
     @Test
-    void constructItWithoutSchemaButWithArgument() {
+    void constructWithoutSchemaButWithArgument() {
         ArgsException thrown = assertThrows(ArgsException.class,
                 () -> new Args("", new String[]{"-s"}),
                 CONSTRUCTOR_SHOULD_HAVE_THROWN);
         assertThat(thrown.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
-        assertThat(thrown.getErrorArgumentId()).isEqualTo('s');
+        assertThat(thrown.getErrorParameter()).isEqualTo("s");
     }
 
     @Test
-    void constructItWithoutSchemaButWithMultipleArguments() {
+    void constructWithoutSchemaButWithMultipleArguments() {
         ArgsException thrown = assertThrows(ArgsException.class,
                 () -> new Args("", new String[]{"-s", "-y"}),
                 CONSTRUCTOR_SHOULD_HAVE_THROWN);
         assertThat(thrown.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
-        assertThat(thrown.getErrorArgumentId()).isEqualTo('s');
+        assertThat(thrown.getErrorParameter()).isEqualTo("sy");
     }
 
     @Test
-    void constructItWithNonLetterSchema() {
+    void constructWithNonLetterSchema() {
         ArgsException thrown = assertThrows(ArgsException.class,
                 () -> new Args("*", new String[]{}),
                 CONSTRUCTOR_SHOULD_HAVE_THROWN);
@@ -95,7 +95,6 @@ class ArgsTest {
                 () -> new Args(DEFAULT_SCHEMA, new String[]{"-s", "hello", "-t"}),
                 CONSTRUCTOR_SHOULD_HAVE_THROWN);
 
-        assertThat(e.getErrorArgumentId()).isEqualTo('t');
         assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
     }
 
