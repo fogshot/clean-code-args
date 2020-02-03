@@ -78,6 +78,10 @@ public class Args {
             String arg = currentArgument.next();
             parseArgument(arg);
         }
+        if (!unexpectedArguments.isEmpty()) {
+            throw new ArgsException('\0', unexpectedArguments.stream().map(Objects::toString)
+                    .collect(Collectors.joining()), UNEXPECTED_ARGUMENT);
+        }
     }
 
     private void parseArgument(String arg) throws ArgsException {
@@ -97,8 +101,6 @@ public class Args {
             argsFound.add(argChar);
         } else {
             unexpectedArguments.add(argChar);
-            throw new ArgsException(argChar, unexpectedArguments.stream().map(Objects::toString)
-                    .collect(Collectors.joining()), UNEXPECTED_ARGUMENT);
         }
     }
 
