@@ -1,92 +1,149 @@
 package com.capgemini.pvonnieb;
 
+import com.capgemini.pvonnieb.exception.ArgsException;
 import org.junit.jupiter.api.Test;
 
-import java.text.ParseException;
-
+import static com.capgemini.pvonnieb.exception.ArgsException.ErrorCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ArgsTest {
 
-    public static final String DEFAULT_SCHEMA = "b, d#, s*";
+    public static final String DEFAULT_SCHEMA = "b, d#, s*, x##";
+    public static final String CONSTRUCTOR_SHOULD_HAVE_THROWN = "Args constructor should have thrown, but didn't.";
+    public static final String A_DOUBLE_VALUE = "-3.67";
 
     @Test
-    void usageForEmptySchema() throws ParseException {
-        Args args = new Args("", new String[]{});
+    void usageForEmptySchema() throws ArgsException {
+        Args args = new Args("", new String[0]);
 
         String usageString = args.usage();
-
         assertThat(usageString).describedAs("Usage message for empty schema should be an empty String.")
                 .isEqualTo("");
     }
 
     @Test
-    void usageForInvalidSchema() throws ParseException {
-        Args args = new Args("a*,s*,d*,f*", new String[]{});
+    void usageForSchemaWithoutArguments() throws ArgsException {
+        Args args = new Args("a*, s*, d*, f*", new String[]{});
 
         String usageString = args.usage();
 
         assertThat(usageString)
                 .describedAs("The usage message should display the schema String surrounded by '-[' and ']'.")
-                .isEqualTo("-[a*,s*,d*,f*]");
+                .isEqualTo("-[a*, s*, d*, f*]");
     }
 
     @Test
-    @SuppressWarnings("squid:S00112")
-        // this method SHOULD throw a generic Exception
-    void errorMessageShouldThrowForOk() throws Exception {
-        Args args = new Args("", new String[]{});
-        Exception thrown = assertThrows(Exception.class,
-                args::errorMessage,
-                "Expected errorMessage() to throw, but it didn't.");
-        assertThat(thrown.getMessage())
-                .describedAs("errorMessage should throw exception for OK case.")
-                .isEqualTo("TILT: Should not get here.");
+    void constructWithoutSchemaButWithArgument() {
+        ArgsException thrown = assertThrows(ArgsException.class,
+                () -> new Args("", new String[]{"-s"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(thrown.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
+        assertThat(thrown.getErrorParameter()).isEqualTo("s");
     }
 
     @Test
-    void errorMessageShouldIdentifyUnexpectedArgument() throws Exception {
-        Args args = new Args(DEFAULT_SCHEMA, new String[]{"-s", "hello", "-t"});
-
-        String errorMessage = args.errorMessage();
-
-        assertThat(errorMessage).describedAs("The error message should mention the unexpected argument '-t'.")
-                .isEqualTo("Argument(s) -t unexpected.");
+    void constructWithoutSchemaButWithMultipleArguments() {
+        ArgsException thrown = assertThrows(ArgsException.class,
+                () -> new Args("", new String[]{"-s", "-y"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(thrown.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
+        assertThat(thrown.getErrorParameter()).isEqualTo("sy");
     }
 
     @Test
-    void errorMessageShouldIdentifyMissingString() throws Exception {
-        Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s"});
-
-        String errorMessage = args.errorMessage();
-
-        assertThat(errorMessage).describedAs("The error message should mention the missing string parameter for '-s'.")
-                .isEqualTo("Could not find string parameter for -s.");
+    void constructWithNonLetterSchema() {
+        ArgsException thrown = assertThrows(ArgsException.class,
+                () -> new Args("*", new String[]{}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(thrown.getErrorCode()).isEqualByComparingTo(ErrorCode.INVALID_ARGUMENT_NAME);
+        assertThat(thrown.getErrorArgumentId()).isEqualTo('*');
     }
 
     @Test
-    void errorMessageShouldIdentifyInvalidInteger() throws Exception {
-        Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "asdf"});
-
-        String errorMessage = args.errorMessage();
-
-        assertThat(errorMessage).describedAs("The error message should mention the invalid integer parameter for '-d'.")
-                .isEqualTo("Argument -d expects an integer but was 'asdf'.");
+    void constructWithSpacesInSchema() throws ArgsException {
+        Args args = new Args("a, b", new String[]{"-a", "-b"});
+        assertThat(args.has('a')).describedAs("Argument 'a' should be present.").isTrue();
+        assertThat(args.has('b')).describedAs("Argument 'b' should be present.").isTrue();
     }
 
     @Test
-    void errorMessageShouldIdentifyMissingInteger() throws Exception {
-        Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d"});
-
-        String errorMessage = args.errorMessage();
-
-        assertThat(errorMessage).describedAs("The error message should mention the missing integer parameter for '-d'.")
-                .isEqualTo("Could not find Integer parameter for -d.");
+    void constructWithoutSpacesInSchema() throws ArgsException {
+        Args args = new Args("a,b", new String[]{"-a", "-b"});
+        assertThat(args.has('a')).describedAs("Argument 'a' should be present.").isTrue();
+        assertThat(args.has('b')).describedAs("Argument 'b' should be present.").isTrue();
     }
 
     @Test
-    void getStringShouldReturnStringParameter() throws ParseException {
+    void constructWithInvalidArgumentFormat() {
+        ArgsException e = assertThrows(ArgsException.class, () -> new Args("f┼", new String[]{}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+
+        assertThat(e.getErrorCode()).describedAs("Invalid Argument format should produce this error code.")
+                .isEqualByComparingTo(ErrorCode.INVALID_FORMAT);
+        assertThat(e.getErrorArgumentId()).describedAs("The error message should contain the argument char.")
+                .isEqualTo('f');
+    }
+
+    @Test
+    void shouldThrowUnexpectedArgument() {
+
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-s", "hello", "-t"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.UNEXPECTED_ARGUMENT);
+    }
+
+    @Test
+    void errorMessageShouldIdentifyMissingString() {
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+
+        assertThat(e.getErrorArgumentId()).isEqualTo('s');
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.MISSING_STRING);
+    }
+
+    @Test
+    void errorMessageShouldIdentifyInvalidInteger() {
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "asdf", "-x", A_DOUBLE_VALUE}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.INVALID_INTEGER);
+        assertThat(e.getErrorArgumentId()).isEqualTo('d');
+    }
+
+    @Test
+    void errorMessageShouldIdentifyMissingInteger() {
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-b", "-x", A_DOUBLE_VALUE, "-d"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.MISSING_INTEGER);
+        assertThat(e.getErrorArgumentId()).isEqualTo('d');
+    }
+
+    @Test
+    void errorMessageShouldIdentifyInvalidDouble() {
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "1", "-s", "asdf", "-x", "asdf"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.INVALID_DOUBLE);
+        assertThat(e.getErrorArgumentId()).isEqualTo('x');
+    }
+
+    @Test
+    void errorMessageShouldIdentifyMissingDouble() {
+        ArgsException e = assertThrows(ArgsException.class,
+                () -> new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "1", "-s", "asdf", "-x"}),
+                CONSTRUCTOR_SHOULD_HAVE_THROWN);
+        assertThat(e.getErrorCode()).isEqualByComparingTo(ErrorCode.MISSING_DOUBLE);
+        assertThat(e.getErrorArgumentId()).isEqualTo('x');
+    }
+
+    @Test
+    void getStringShouldReturnStringParameter() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getString('s')).describedAs("The returned String should be equal to the argument of '-s'.")
@@ -94,7 +151,7 @@ class ArgsTest {
     }
 
     @Test
-    void getStringShouldReturnEmptyStringForUnknownArg() throws ParseException {
+    void getStringShouldReturnEmptyStringForUnknownArg() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getString('z')).describedAs("The returned String should be equal to ''.")
@@ -102,7 +159,7 @@ class ArgsTest {
     }
 
     @Test
-    void getIntShouldReturnIntParameter() throws ParseException {
+    void getIntShouldReturnIntParameter() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getInt('d')).describedAs("The returned Integer should be equal to the argument of '-d'.")
@@ -110,7 +167,7 @@ class ArgsTest {
     }
 
     @Test
-    void getIntShouldReturnZeroForUnknownArg() throws ParseException {
+    void getIntShouldReturnZeroForUnknownArg() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getInt('z')).describedAs("The returned Integer should be equal to Zero.")
@@ -118,7 +175,7 @@ class ArgsTest {
     }
 
     @Test
-    void getBooleanShouldReturnBooleanParameter() throws ParseException {
+    void getBooleanShouldReturnBooleanParameter() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getBoolean('b'))
@@ -127,11 +184,18 @@ class ArgsTest {
     }
 
     @Test
-    void getBooleanShouldReturnFalseForUnknownArg() throws ParseException {
+    void getBooleanShouldReturnFalseForUnknownArg() throws ArgsException {
         Args args = new Args(DEFAULT_SCHEMA, new String[]{"-b", "-d", "3", "-s", "asdf"});
 
         assertThat(args.getBoolean('z'))
                 .describedAs("The returned Boolean should be false.")
                 .isFalse();
+    }
+
+    @Test
+    void getDoubleShouldReturnDoubleParameter() throws ArgsException {
+        Args args = new Args("b, x##", new String[]{"-b", "-x", A_DOUBLE_VALUE});
+        assertThat(args.has('x'));
+        assertThat(args.getDouble('x')).isEqualTo(-3.67);
     }
 }
