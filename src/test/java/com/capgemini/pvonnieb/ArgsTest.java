@@ -63,15 +63,15 @@ class ArgsTest {
     @Test
     void constructWithSpacesInSchema() throws ArgsException {
         Args args = new Args("a, b", new String[]{"-a", "-b"});
-        assertThat(args.has('a'));
-        assertThat(args.has('b'));
+        assertThat(args.has('a')).describedAs("Argument 'a' should be present.").isTrue();
+        assertThat(args.has('b')).describedAs("Argument 'b' should be present.").isTrue();
     }
 
     @Test
     void constructWithoutSpacesInSchema() throws ArgsException {
         Args args = new Args("a,b", new String[]{"-a", "-b"});
-        assertThat(args.has('a'));
-        assertThat(args.has('b'));
+        assertThat(args.has('a')).describedAs("Argument 'a' should be present.").isTrue();
+        assertThat(args.has('b')).describedAs("Argument 'b' should be present.").isTrue();
     }
 
     @Test
